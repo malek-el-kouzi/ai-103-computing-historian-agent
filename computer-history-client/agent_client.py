@@ -12,6 +12,8 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 
 # Import Azure Identity and OpenAI client libraries
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI
 
 
 
@@ -32,7 +34,14 @@ class AgentClient:
         
         # Create OpenAI client authenticated with Azure credentials 
 
-
+        self.client = OpenAI(
+            api_key=get_bearer_token_provider(
+             DefaultAzureCredential(),
+            "https://ai.azure.com/.default"
+         ),
+    base_url=self.agent_endpoint,
+    default_query={"api-version": "v1"}
+)
 
         
         # Maintain conversation history (last 3 exchanges)
@@ -63,7 +72,10 @@ class AgentClient:
 
             # Send prompt with full conversation history and get response
 
-
+            response = self.client.responses.create(
+            input=self.conversation_history
+            )
+            assistant_message = response.output_text
 
             
             # Add assistant response to conversationhistory
