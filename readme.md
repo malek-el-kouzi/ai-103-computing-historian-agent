@@ -1,9 +1,32 @@
-# Develop your first agent with Microsoft Foundry
+# Computing Historian Agent (Microsoft Foundry)
 
-This repo contains exercises and supporting files for skilling content on [Microsoft AI Skills Navigator](https://aiskillsnavigator.microsoft.com/playlists/ceb4e15f-0793-4389-ad02-c7c778d16b2c).
+An AI agent built with **Microsoft Foundry** that answers questions about the history of computing, with a Python Flask web client that talks to it through the OpenAI Responses API.
 
-For the best experience, view the labs in the [*GitHub Pages* site](https://microsoftlearning.github.io/mslearn-agent-quickstart/) for this repo.
+Built while preparing for **Microsoft AI-103: Azure AI Apps and Agents Developer**.
 
-> **Note**: The labs in this repo require an Azure subscription.
+## What I built
+- Created an agent in Microsoft Foundry using a deployed **gpt-5-mini** model
+- Wrote a system prompt that keeps the agent focused on computing history
+- Added the **web search** tool for up-to-date answers
+- Completed the Python client (`agent_client.py`) to call the agent using **Entra ID authentication** (`DefaultAzureCredential`), with no API keys in code
+- Kept the conversation history so the agent understands follow-up questions
 
-If you encounter any problems when completing the labs in this repo, please submit an [issue](../../issues).
+## Tech stack
+Python · Flask · OpenAI Python SDK · Azure Identity · Microsoft Foundry Agent Service
+
+## Run it yourself
+1. Create an agent in Microsoft Foundry and copy its **Responses** endpoint
+2. Copy `computer-history-client/.env.example` to `.env` and paste in your endpoint
+3. Then:
+   ```powershell
+   cd computer-history-client
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   az login
+   python app.py
+   ```
+4. Open http://127.0.0.1:5000
+
+## Credits
+Based on the [Microsoft Learning lab](https://github.com/MicrosoftLearning/mslearn-agent-quickstart) "Develop your first AI agent in Microsoft Foundry", used under the MIT License (see `LICENSE`).
