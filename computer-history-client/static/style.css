@@ -335,7 +335,8 @@ body {
 }
 
 .message-image {
-    max-width: 300px;
+    max-width: min(300px, 100%);
+    height: auto;
     border-radius: 8px;
     margin-top: 8px;
     display: block;
@@ -353,16 +354,32 @@ body {
 
 .attach-btn {
     background: transparent;
-    border: none;
+    border: 1px solid #d0d0d0;
+    color: #666;
     font-size: 24px;
     cursor: pointer;
-    padding: 8px;
+    width: 44px;
+    height: 44px;
     border-radius: 8px;
-    transition: background 0.2s;
+    transition: background 0.2s, border-color 0.2s;
+    flex-shrink: 0;
 }
 
 .attach-btn:hover {
     background: #f0f0f0;
+    border-color: #667eea;
+}
+
+.attach-btn:focus-visible,
+.remove-image-btn:focus-visible {
+    outline: 3px solid rgba(102, 126, 234, 0.5);
+    outline-offset: 2px;
+}
+
+.attach-btn:disabled,
+.remove-image-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .message-input {
@@ -425,10 +442,16 @@ body {
 
 /* Image Preview */
 .image-preview {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
     padding: 10px 30px;
     background: white;
     border-top: 1px solid #e0e0e0;
-    position: relative;
+}
+
+.image-preview[hidden] {
+    display: none;
 }
 
 .image-preview img {
@@ -439,20 +462,27 @@ body {
 }
 
 .remove-image-btn {
-    position: absolute;
-    top: 15px;
-    left: 185px;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    border: none;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
+    background: transparent;
+    color: #555;
+    border: 1px solid #d0d0d0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.remove-image-btn:hover {
+    background: #f0f0f0;
+}
+
+.image-error:not(:empty) {
+    display: block;
+    color: #a12622;
+    margin-top: 4px;
 }
 
 /* Footer */

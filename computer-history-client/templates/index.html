@@ -41,12 +41,22 @@
             </div>
 
             <!-- Input Area -->
+            <div id="imagePreview" class="image-preview" hidden aria-live="polite">
+                <img id="imagePreviewImg" alt="Selected image preview">
+                <button id="removeImageBtn" class="remove-image-btn" type="button"
+                    title="Remove attached image" aria-label="Remove attached image">&times;</button>
+            </div>
             <div class="input-container" role="form" aria-label="Message input form">
+                <input type="file" id="imageInput" accept="image/png,image/jpeg" hidden>
+                <button id="attachBtn" class="attach-btn" type="button" title="Attach an image"
+                    aria-label="Attach an image">
+                    <span aria-hidden="true">📎</span>
+                </button>
                 <label for="messageInput" class="sr-only">Type your message</label>
                 <input type="text" id="messageInput" class="message-input" placeholder="Type your message..."
-                    autocomplete="off" aria-label="Message input field" aria-describedby="inputHelp" tabindex="1"
+                    autocomplete="off" aria-label="Message input field" aria-describedby="inputHelp imageError"
                     maxlength="10000">
-                <button id="sendBtn" class="send-btn" title="Send message" aria-label="Send message" tabindex="2">
+                <button id="sendBtn" class="send-btn" title="Send message" aria-label="Send message">
                     <span aria-hidden="true">➤</span>
                 </button>
             </div>
@@ -54,6 +64,7 @@
             <!-- Footer -->
             <footer class="footer" role="contentinfo">
                 <span id="inputHelp">AI-generated content can include mistakes</span>
+                <span id="imageError" class="image-error" role="alert" aria-live="assertive"></span>
             </footer>
         </div>
     </div>

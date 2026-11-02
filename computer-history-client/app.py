@@ -5,12 +5,45 @@ This is the main Flask application that provides a web interface
 for interacting with the Computing History agent.
 """
 
+import base64
+import binascii
 from flask import Flask, render_template, request, jsonify
 import markdown
 import bleach
 from agent_client import AgentClient
 
 app = Flask(__name__)
+MAX_IMAGE_SIZE = 5 * 1024 * 1024
+
+
+def _validate_image_data_url(image_data):
+    """Validate and return a supported PNG or JPEG data URL."""
+    if not isinstance(image_data, str):
+        return None, 'Image data is invalid'
+
+    try:
+        header, encoded_image = image_data.split(',', 1)
+    except ValueError:
+        return None, 'Image data is invalid'
+
+    if header not in ('data:image/png;base64', 'data:image/jpeg;base64'):
+        return None, 'Choose a PNG or JPEG image'
+    if len(encoded_image) > ((MAX_IMAGE_SIZE + 2) // 3) * 4:
+        return None, 'Image must be 5 MB or smaller'
+
+    try:
+        image_bytes = base64.b64decode(encoded_image, validate=True)
+    except (binascii.Error, ValueError):
+        return None, 'Image data is invalid'
+
+    if len(image_bytes) > MAX_IMAGE_SIZE:
+        return None, 'Image must be 5 MB or smaller'
+    if header == 'data:image/png;base64' and not image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+        return None, 'Image data is not a valid PNG'
+    if header == 'data:image/jpeg;base64' and not image_bytes.startswith(b'\xff\xd8\xff'):
+        return None, 'Image data is not a valid JPEG'
+
+    return image_data, None
 
 
 def _set_external_link_attributes(attrs, new=False):
@@ -79,7 +112,7 @@ def chat():
             'error': 'Agent client not initialized. Check your .env configuration.'
         }), 500
     
-    data = request.json
+    data = request.get_json(silent=True) or {}
     user_message = data.get('message', '').strip()
     
     if not user_message:
@@ -88,12 +121,23 @@ def chat():
     # Validate message length to prevent abuse
     if len(user_message) > 10000:
         return jsonify({'error': 'Message too long'}), 400
+
+    image_data = data.get('image')
+    if image_data is not None:
+        image_data, image_error = _validate_image_data_url(image_data)
+        if image_error:
+            return jsonify({'error': image_error}), 400
     
     # Note: We do NOT escape HTML here because:
     # 1. The agent needs to receive the raw text to understand it properly
     # 2. HTML escaping is performed on the frontend when displaying messages
     # 3. This follows the principle: escape at the point of use (display), not at input
-    response = agent.send_message(user_message)
+    try:
+        response = agent.send_message(user_message, image_data)
+    except Exception:
+        app.logger.exception('Error communicating with agent')
+        return jsonify({'error': 'Unable to get a response from the agent. Please try again.'}), 502
+
     response_html = render_markdown_to_safe_html(response)
 
     return jsonify({
