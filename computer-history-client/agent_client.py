@@ -8,7 +8,7 @@ to submit prompts and handle responses.
 
 import os
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
 # Import Azure Identity and OpenAI client libraries
@@ -39,29 +39,38 @@ class AgentClient:
              DefaultAzureCredential(),
             "https://ai.azure.com/.default"
          ),
-    base_url=self.agent_endpoint,
-    default_query={"api-version": "v1"}
-)
+        base_url=self.agent_endpoint,
+        default_query={"api-version": "v1"}
+        )
 
         
         # Maintain conversation history (last 3 exchanges)
         self.conversation_history: List[Dict[str, Any]] = []
         self.max_history = 3
     
-    def send_message(self, user_message: str) -> str:
+    def send_message(self, user_message: str, image_data_url: Optional[str] = None) -> str:
         """
         Send a message to the agent and return the response.
         
         Args:
             user_message: The text message from the user
+            image_data_url: An optional base64-encoded PNG or JPEG data URL
             
         Returns:
             The agent's response text
         """
         # Add current user message to conversation history
+        user_content = user_message
+        if image_data_url:
+            user_content = [
+                {"type": "input_text", "text": user_message},
+                {"type": "input_image", "image_url": image_data_url}
+            ]
+
+        history_length = len(self.conversation_history)
         self.conversation_history.append({
             "role": "user",
-            "content": user_message
+            "content": user_content
         })
         
         try:
@@ -101,9 +110,10 @@ class AgentClient:
             
             return assistant_message
             
-        except Exception as e:
+        except Exception:
             logger.exception("Error communicating with agent")
-            return "An internal error occurred while communicating with the agent."
+            del self.conversation_history[history_length:]
+            raise
     
     def reset_conversation(self):
         """Clear the conversation history."""

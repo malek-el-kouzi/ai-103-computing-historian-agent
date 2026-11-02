@@ -3,6 +3,16 @@ const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const chatMessages = document.getElementById('chatMessages');
 const resetBtn = document.getElementById('resetBtn');
+const attachBtn = document.getElementById('attachBtn');
+const imageInput = document.getElementById('imageInput');
+const imagePreview = document.getElementById('imagePreview');
+const imagePreviewImg = document.getElementById('imagePreviewImg');
+const removeImageBtn = document.getElementById('removeImageBtn');
+const imageError = document.getElementById('imageError');
+
+const maxImageSize = 5 * 1024 * 1024;
+let selectedImageDataUrl = null;
+let imageReadPending = false;
 
 // Event listeners
 sendBtn.addEventListener('click', sendMessage);
@@ -13,6 +23,12 @@ messageInput.addEventListener('keypress', (e) => {
     }
 });
 resetBtn.addEventListener('click', resetConversation);
+attachBtn.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', handleImageSelection);
+removeImageBtn.addEventListener('click', () => {
+    clearSelectedImage();
+    attachBtn.focus();
+});
 
 // Keyboard accessibility: Allow Space key to activate buttons
 sendBtn.addEventListener('keydown', (e) => {
@@ -30,64 +46,109 @@ resetBtn.addEventListener('keydown', (e) => {
 });
 
 // Functions
-function sendMessage() {
+async function sendMessage() {
     const message = messageInput.value.trim();
 
-    if (!message) {
+    if (!message || imageReadPending) {
         return;
     }
 
-    // Clear welcome message if present
-    const welcomeMessage = document.querySelector('.welcome-message');
-    if (welcomeMessage) {
-        welcomeMessage.remove();
-    }
-
-    // Add user message to chat
-    addMessage(message, 'user');
-
-    // Clear input
-    messageInput.value = '';
-
-    // Disable input while processing
+    const submittedImage = selectedImageDataUrl;
     setInputDisabled(true);
-
-    // Show typing indicator
     const typingIndicator = addTypingIndicator();
 
-    // Send to server
-    fetch('/chat', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            message: message
-        })
-    })
-        .then(response => response.json())
-        .then(data => {
-            // Remove typing indicator
-            typingIndicator.remove();
-
-            if (data.error) {
-                addMessage(`Error: ${data.error}`, 'agent');
-            } else if (data.response_html) {
-                addMessage(data.response_html, 'agent', { isHtml: true });
-            } else {
-                addMessage(data.response, 'agent');
-            }
-
-            // Re-enable input
-            setInputDisabled(false);
-            messageInput.focus();
-        })
-        .catch(error => {
-            typingIndicator.remove();
-            addMessage(`Error: ${error.message}`, 'agent');
-            setInputDisabled(false);
-            messageInput.focus();
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message,
+                image: submittedImage
+            })
         });
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            throw new Error(data.error || 'Unable to send the message.');
+        }
+
+        typingIndicator.remove();
+        const welcomeMessage = document.querySelector('.welcome-message');
+        if (welcomeMessage) {
+            welcomeMessage.remove();
+        }
+        addMessage(message, 'user', { image: submittedImage });
+        if (data.response_html) {
+            addMessage(data.response_html, 'agent', { isHtml: true });
+        } else {
+            addMessage(data.response, 'agent');
+        }
+
+        messageInput.value = '';
+        clearSelectedImage();
+    } catch (error) {
+        typingIndicator.remove();
+        addMessage(`Error: ${error.message}`, 'agent');
+    } finally {
+        setInputDisabled(false);
+        messageInput.focus();
+    }
+}
+
+function handleImageSelection() {
+    const file = imageInput.files[0];
+    imageInput.value = '';
+    if (!file) {
+        return;
+    }
+
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+        showImageError('Choose a PNG or JPEG image.');
+        return;
+    }
+    if (file.size > maxImageSize) {
+        showImageError('Image must be 5 MB or smaller.');
+        return;
+    }
+
+    clearImageError();
+    imageReadPending = true;
+    setInputDisabled(false);
+    const reader = new FileReader();
+    reader.onload = () => {
+        if (typeof reader.result !== 'string') {
+            showImageError('Unable to read this image. Choose another file.');
+        } else {
+            selectedImageDataUrl = reader.result;
+            imagePreviewImg.src = selectedImageDataUrl;
+            imagePreview.hidden = false;
+        }
+        imageReadPending = false;
+        setInputDisabled(false);
+    };
+    reader.onerror = () => {
+        imageReadPending = false;
+        showImageError('Unable to read this image. Choose another file.');
+        setInputDisabled(false);
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearSelectedImage() {
+    selectedImageDataUrl = null;
+    imagePreviewImg.removeAttribute('src');
+    imagePreview.hidden = true;
+    imageInput.value = '';
+    clearImageError();
+}
+
+function showImageError(message) {
+    imageError.textContent = message;
+}
+
+function clearImageError() {
+    imageError.textContent = '';
 }
 
 function addMessage(text, sender, options = {}) {
@@ -112,6 +173,14 @@ function addMessage(text, sender, options = {}) {
         content.innerHTML = formattedText;
     }
 
+    if (options.image) {
+        const image = document.createElement('img');
+        image.className = 'message-image';
+        image.src = options.image;
+        image.alt = 'Image attached to the user message';
+        content.appendChild(image);
+    }
+
     messageDiv.appendChild(avatar);
     messageDiv.appendChild(content);
 
@@ -120,6 +189,7 @@ function addMessage(text, sender, options = {}) {
 
     // Scroll again after a short delay to ensure content is fully rendered
     setTimeout(scrollToBottom, 100);
+    return messageDiv;
 }
 
 function renderMessageContent(text) {
@@ -278,7 +348,10 @@ function addTypingIndicator() {
 
 function setInputDisabled(disabled) {
     messageInput.disabled = disabled;
-    sendBtn.disabled = disabled;
+    sendBtn.disabled = disabled || imageReadPending;
+    attachBtn.disabled = disabled || imageReadPending;
+    imageInput.disabled = disabled || imageReadPending;
+    removeImageBtn.disabled = disabled || imageReadPending;
 
     // Update ARIA attributes for better screen reader support
     if (disabled) {
@@ -311,6 +384,7 @@ function resetConversation() {
         .then(data => {
             // Clear chat messages
             chatMessages.innerHTML = '<div class="welcome-message" role="status">Let\'s chat about computing history...</div>';
+            clearSelectedImage();
             messageInput.focus();
 
             // Remove announcement after a short delay
